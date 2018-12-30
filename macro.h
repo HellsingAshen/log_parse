@@ -34,6 +34,11 @@
         if(r)   {return r;} \
     } while (0);
 
+#define SETRET_GOTO_IF_COND(COND, RETCODE, GOTO) \
+    do { \
+       if (COND) {iRet = RETCODE;goto GOTO;} \
+    } while (0);
+
 #define USAGE \
     "USAGE:\n\t\t-d dir \n" \
     "        \t-f file \n" \
@@ -42,8 +47,13 @@
     
 #define FREE(p) \
     do { \
-        free(p); \
-        p = NULL; \
+        if (p){ \
+            free(p); \
+            p = NULL; \
+        } \
     } while (0);
 
+
 #define STRCMPB(p, s)  strncmp(p, s, strlen(s))
+
+#define DESC(str)   (1)

@@ -37,7 +37,7 @@
  * @ cautious: 
  *      *ppcLineCtx is not a new memory because we do need to save it.
  */
-int GetLineCtx(char* pcLine, char** ppcLineCtx)
+int GetLineCtt(char* pcLine, char** ppcLineCtx)
 {
     int             iRet            = 0; 
     char*           pcOut           = NULL;
@@ -391,6 +391,14 @@ KeyFunc_S g_astSetX[] = {
     {CT_TMPQ,  SetLnCttByType_TMPQ},
 };
 
+/** 
+ * @ desc: get [] value from pcStr and pushback into pstVct
+ * @ in  :
+ * @ out :
+ * @ cautious:
+ *
+ **/
+
 int GetSpecVec(char* pcStr, Vector_S* pstVct)
 {
     int             iRet            = 0;
@@ -482,10 +490,10 @@ int GetContentDetail(
     assert(NULL != pcContent || NULL != pstVct);
 
     iRet = GetSpecVec(pcContent, pstVct);
-    BREAK_IF_ERR(iRet);
+    RETURN_IF_ERR(iRet);
 
     iRet = UpdateTypeByVct(pstLnCtt, pstVct);
-    BREAK_IF_ERR(iRet);
+    RETURN_IF_ERR(iRet);
     
 
     for (; i < sizeof(g_astSetX)/sizeof(KeyFunc_S); i++)
@@ -541,26 +549,33 @@ void DestructCttValue(void* pData)
     FREE(pData);
     return;
 }
+/** 
+ * @ desc: init pstLineCtt
+ * @ in  :
+ * @ out :
+ * @ cautious:
+ *
+ **/
 
-int InitLineContent(char* pcLineCtx, LineContent_S* pstLineCtt)
+int InitLineContent(char* pcLineCtt, LineContent_S* pstLineCtt)
 {
     int             iRet            = 0;
     CtxType_E       enCtxType        = CT_INVALID;
     Vector_S*       pstVctor        = NULL; /* save [] value */
    
-    TrimLR(pcLineCtx);
+    TrimLR(pcLineCtt);
     
-    if (!strlen(pcLineCtx))
+    if (!strlen(pcLineCtt))
     {
         return ERR_CODE_INVAILDLINE;     
     }
 
     (void)Vct_Construct(&pstVctor, NULL);
     
-    while (*pcLineCtx++ == '-');
-    pcLineCtx--;
+    while (*pcLineCtt++ == '-');
+    pcLineCtt--;
 
-    iRet    = GetContentType(pcLineCtx, &enCtxType);
+    iRet    = GetContentType(pcLineCtt, &enCtxType);
     GOTO_IF_COND(iRet, error);    
     
 
@@ -576,7 +591,7 @@ int InitLineContent(char* pcLineCtx, LineContent_S* pstLineCtt)
         }
         default:
         {
-            iRet  = GetContentDetail(pcLineCtx, pstLineCtt, pstVctor);
+            iRet  = GetContentDetail(pcLineCtt, pstLineCtt, pstVctor);
             GOTO_IF_COND(ERR_CODE_INVAILDLINE == iRet, error);
             break;
         }
@@ -588,7 +603,7 @@ int InitLineContent(char* pcLineCtx, LineContent_S* pstLineCtt)
      
 error:
     Vct_Destruct(&pstVctor);
-    LOGE("Ignore line [%s]. no need to parese or failed to find type .\n", pcLineCtx);
+    LOGE("Ignore line [%s]. no need to parese or failed to find type .\n", pcLineCtt);
     return iRet;
 }
 
@@ -598,16 +613,23 @@ void SetTransEndDate(LineEntry_S* pstLineEntry)
     {
         return;
     }
+#if 0
     if (pstLineEntry->pstLnCtt->enContentType == CT_WJCS
         || pstLineEntry->pstLnCtt->enContentType == CT_CSFH)
     {
-        strcpy(pstLineEntry->acEndTime, pstLineEntry->acTime);
-        strcpy(pstLineEntry->acEndDate, pstLineEntry->acDate);
+        strcpy(pstLineEntry->pstLnCtt->acEndTime, pstLineEntry->acTime);
+        strcpy(pstLineEntry->pstLnCtt->acEndDate, pstLineEntry->acDate);
+        return;
     }
+#endif
+
+    strcpy(pstLineEntry->pstLnCtt->acEndTime, pstLineEntry->acTime);
+    strcpy(pstLineEntry->pstLnCtt->acEndDate, pstLineEntry->acDate);
+    
     return;
 }
 /** 
- * @ desc : construct  line entry with line buf
+ * @ desc : construct  line entry with line buf pcLine
  * @ in   : 
  *          pcLine          -- buf which is to be parsed.
  *          2018-12-24 04:59:03    33988 ____clisfer.sqc:1165 accept ok
@@ -634,10 +656,12 @@ int InitLineEntry(char* pcLine, LineEntry_S* pstLineEntry)
     GOTO_IF_COND(iRet, error);
     strcpy(pstLineEntry->acPid, pcOut);
 
+#if 0
     memset(pcOut, 0, MAX_BUFF_LEN_128);
     iRet    = GetNthEleBySep(pcLine, 4, SP, pcOut);
     GOTO_IF_COND(iRet, error);
     strcpy(pstLineEntry->acFileLine, pcOut);
+#endif
     
     memset(pstLineEntry->acKey, 0, sizeof(pstLineEntry->acKey));
     sprintf(pstLineEntry->acKey, "%s%s%s", pstLineEntry->acDate, pstLineEntry->acTime, pstLineEntry->acPid);
@@ -652,6 +676,7 @@ error:
     return iRet;
 }
 
+#if DESC(clean)
 /** 
  * @ desc : destory line entry
  * @ in   :
@@ -661,19 +686,30 @@ error:
  **/
 void DestroyLineEntry(LineEntry_S* pstLineEntry)
 {
+    LineContent_S*      pstLnTmpCtt         = NULL;
+
     if (!pstLineEntry) return;
 
-    if (pstLineEntry)
+    if (!list_empty(&(pstLineEntry->stListHead)))
     {
-        if (pstLineEntry->pstLnCtt)
+        list_for_each_entry(pstLnTmpCtt, &(pstLineEntry->stListHead), stLink)
         {
-            DestructCtt(pstLineEntry->pstLnCtt);
+            DestructCtt(pstLnTmpCtt);
         }
     }
+
+    if (!list_empty(&(pstLineEntry->stListHead)))
+    {
+        LOGE("destory line entry error. please check it . key = [%s].\n", pstLineEntry->acKey);
+    }
+
+    pstLineEntry->pstLnCtt  = NULL;
 
     FREE(pstLineEntry);
     return;
 }
+
+#endif
 
 /** 
  * @ desc : construct  line entry with line buf
@@ -689,30 +725,36 @@ int ConstructLineEntry(char* pcLine, LineEntry_S** ppstLineEntry)
     int             iRet            = 0;
     LineEntry_S*    pstLineEntry    = NULL;
 
-    char*           pcLineCtx       = NULL;
+    char*           pcLineCtt       = NULL;
     LineContent_S*  pstLineContent  = NULL;
 
-    iRet    = GetLineCtx(pcLine, &pcLineCtx);
-    GOTO_IF_COND(iRet, error);
+    /* pcLinectt point to pcLine + x, don't need to free it */
+    iRet    = GetLineCtt(pcLine, &pcLineCtt);
+    GOTO_IF_COND(iRet, error1);
 
     pstLineContent  = MALLOC(sizeof(LineContent_S));
-    if (!pstLineContent)
-    {
-        iRet = ERR_CODE_MALLOCFAILED;
-        goto error;
-    }
+    SETRET_GOTO_IF_COND(!pstLineContent, ERR_CODE_MALLOCFAILED, error1);
 
     memset(pstLineContent, 0, sizeof(*pstLineContent));
-    iRet    = InitLineContent(pcLineCtx, pstLineContent);
-    GOTO_IF_COND(iRet, error);
+
+    iRet    = InitLineContent(pcLineCtt, pstLineContent);
+    GOTO_IF_COND(iRet, error1);
 
     pstLineEntry    = MALLOC(sizeof(LineEntry_S));
-    if(pstLineEntry == NULL)
-    {
-        iRet = ERR_CODE_MALLOCFAILED;
-        goto error;
-    }
+    SETRET_GOTO_IF_COND(!pstLineEntry, ERR_CODE_MALLOCFAILED, error1);
+
     memset(pstLineEntry, 0, sizeof(*pstLineEntry));
+
+#if 0
+    /* Compile error. I don't know  the reason. */
+    pstLineEntry->stListHead = LIST_HEAD_INIT(pstLineEntry->stListHead);
+    pstLineEntry->stListHead = {&(pstLineEntry->stListHead), &(pstLineEntry->stListHead)};
+#endif
+    
+    pstLineEntry->stListHead.next = &(pstLineEntry->stListHead);
+    pstLineEntry->stListHead.prev = &(pstLineEntry->stListHead);
+
+    list_add_head(&(pstLineContent->stLink), &(pstLineEntry->stListHead));
 
     pstLineEntry->pstLnCtt  = pstLineContent;
     iRet    = InitLineEntry(pcLine, pstLineEntry);
@@ -723,16 +765,114 @@ int ConstructLineEntry(char* pcLine, LineEntry_S** ppstLineEntry)
     return iRet;
 
 error:
-    FREE(pstLineContent);
     DestroyLineEntry(pstLineEntry);
+    *ppstLineEntry  = NULL;
+    return iRet;
+
+error1:
+    DestructCtt(pstLineContent);
     *ppstLineEntry  = NULL;
     return iRet;
 }
 
-int UpdateEntry(struct rb_root* pstRoot, LineEntry_S* pstEntryNew)
+void PrintEntry(LineEntry_S* pstEntry)
+{
+    int                 iCount              = 0;
+    LineContent_S*      pstLnTmpCtt         = NULL;
+
+    if (!pstEntry)
+    {
+        return;
+    }
+    printf("--------->> Entry start---\n");
+    printf("acDate      = [%s].\n", pstEntry->acDate      );
+    printf("acTime      = [%s].\n", pstEntry->acTime      );
+    printf("acPid       = [%s].\n", pstEntry->acPid       );
+    printf("acKey       = [%s].\n", pstEntry->acKey       );
+
+    if (!list_empty(&(pstEntry->stListHead)))
+    {
+        list_for_each_entry(pstLnTmpCtt, &(pstEntry->stListHead), stLink)
+        {
+            printf("Entry list ###[%d]###\n", iCount++);
+            printf("   enContentType= [%d]\n", pstLnTmpCtt->enContentType);
+            printf("   acEndDate    = [%s]\n", pstLnTmpCtt->acEndDate  );
+            printf("   acEndTime    = [%s]\n", pstLnTmpCtt->acEndTime  );
+
+            printf("   pcTranCode   = [%s]\n", pstLnTmpCtt->pcTranCode );
+            printf("   pcRetCode    = [%s]\n", pstLnTmpCtt->pcRetCode  );
+            printf("   pcRetDesc    = [%s]\n", pstLnTmpCtt->pcRetDesc  );
+            printf("   pcAppSrc     = [%s]\n", pstLnTmpCtt->pcAppSrc   );
+            printf("   pcAppDst     = [%s]\n", pstLnTmpCtt->pcAppDst   );
+            printf("   pcNodeSrc    = [%s]\n", pstLnTmpCtt->pcNodeSrc  );
+            printf("   pcNodeDst    = [%s]\n", pstLnTmpCtt->pcNodeDst  );
+            printf("   pcDstFile    = [%s]\n", pstLnTmpCtt->pcDstFile  );
+            printf("   pcSeqNo      = [%s]\n", pstLnTmpCtt->pcSeqNo    );
+            printf("   pcSrcIp      = [%s]\n", pstLnTmpCtt->pcSrcIp    );
+            printf("   pcDstIp      = [%s]\n", pstLnTmpCtt->pcDstIp    );
+            printf("   pcDstPort    = [%s]\n", pstLnTmpCtt->pcDstPort  );
+            printf("   pcBasePath   = [%s]\n", pstLnTmpCtt->pcBasePath );
+            printf("   pcDst        = [%s]\n", pstLnTmpCtt->pcDst      );
+            printf("   pcSrc        = [%s]\n", pstLnTmpCtt->pcSrc      );
+        }
+        
+    }
+
+    printf("---------<<< Entry end---\n");
+    return;
+}
+
+/** 
+ * @ desc : process line which is first line of a transaction.
+ * @ in   :
+ * @ out  :
+ * @ cautious: insert if not exist . add into list if exist.
+ *
+ **/
+int TransBeginPro(
+    struct rb_root* pstRoot,  
+    LineEntry_S*    pstLnEty
+    )
 {
     int             iRet            = 0;
-    
+    LineEntry_S*    pstLineEntry    = NULL;
+    struct  list_head* pstLink      = NULL;
+   
+    pstLineEntry = SerachNode(pstRoot, pstLnEty->acKey);
+    if (!pstLineEntry)
+    {
+        iRet    = InsertNode(pstRoot, pstLnEty);
+    }
+    else
+    {
+        pstLink = &(pstLnEty->pstLnCtt->stLink);
+
+        /* transfer list node from new to old */
+        list_del(&(pstLnEty->pstLnCtt->stLink));
+        list_add_head(pstLink, &(pstLineEntry->stListHead));
+
+        /*  reset latest line content ptr */
+        pstLineEntry->pstLnCtt = pstLnEty->pstLnCtt;
+
+        pstLnEty->pstLnCtt = NULL;
+        DestroyLineEntry(pstLnEty);
+    }
+    return iRet;
+}
+
+/** 
+ * @ desc : update tree by new line entry 
+ * @ in   :
+ * @ out  :
+ * @ cautious:
+ *
+ **/
+int TransUpdate(
+    struct rb_root* pstRoot,  
+    LineEntry_S*    pstEntryNew
+    )
+{
+    int             iRet            = 0;
     LineEntry_S*    pstLineEntry    = NULL;
 
     assert(NULL != pstRoot || NULL != pstEntryNew);
@@ -754,48 +894,8 @@ int UpdateEntry(struct rb_root* pstRoot, LineEntry_S* pstEntryNew)
     iRet    = RefreshNode(pstEntryNew, pstLineEntry);
     RETURN_IF_ERR(iRet);
     
-    return iRet;
+    return  iRet;
 }
-void PrintEntry(LineEntry_S* pstEntry)
-{
-    if (!pstEntry)
-    {
-        return;
-    }
-printf("--------->> Entry start---\n");
-    printf("acDate      = [%s].\n", pstEntry->acDate      );
-    printf("acTime      = [%s].\n", pstEntry->acTime      );
-    printf("acPid       = [%s].\n", pstEntry->acPid       );
-    printf("acFileLine  = [%s].\n", pstEntry->acFileLine  );
-    printf("acEndDate   = [%s].\n", pstEntry->acEndDate   );
-    printf("acEndTime   = [%s].\n", pstEntry->acEndTime   );
-    printf("acKey       = [%s].\n", pstEntry->acKey       );
-
-    if (pstEntry->pstLnCtt)
-    {
-        printf("enContentType = [%d].\n", pstEntry->pstLnCtt->enContentType);
-
-        printf("   pcTranCode   = [%s]\n", pstEntry->pstLnCtt->pcTranCode );
-        printf("   pcRetCode    = [%s]\n", pstEntry->pstLnCtt->pcRetCode  );
-        printf("   pcRetDesc    = [%s]\n", pstEntry->pstLnCtt->pcRetDesc  );
-        printf("   pcAppSrc     = [%s]\n", pstEntry->pstLnCtt->pcAppSrc   );
-        printf("   pcAppDst     = [%s]\n", pstEntry->pstLnCtt->pcAppDst   );
-        printf("   pcNodeSrc    = [%s]\n", pstEntry->pstLnCtt->pcNodeSrc  );
-        printf("   pcNodeDst    = [%s]\n", pstEntry->pstLnCtt->pcNodeDst  );
-        printf("   pcDstFile    = [%s]\n", pstEntry->pstLnCtt->pcDstFile  );
-        printf("   pcSeqNo      = [%s]\n", pstEntry->pstLnCtt->pcSeqNo    );
-        printf("   pcSrcIp      = [%s]\n", pstEntry->pstLnCtt->pcSrcIp    );
-        printf("   pcDstIp      = [%s]\n", pstEntry->pstLnCtt->pcDstIp    );
-        printf("   pcDstPort    = [%s]\n", pstEntry->pstLnCtt->pcDstPort  );
-        printf("   pcBasePath   = [%s]\n", pstEntry->pstLnCtt->pcBasePath );
-        printf("   pcDst        = [%s]\n", pstEntry->pstLnCtt->pcDst      );
-        printf("   pcSrc        = [%s]\n", pstEntry->pstLnCtt->pcSrc      );
-    }
-
-printf("---------<<< Entry end---\n");
-    return;
-}
-
 
 /** 
  * @ desc : parser file 
@@ -826,7 +926,7 @@ int ParseFile(char* pcFile)
     while (-1 != (tReadLine = getline(&pcLine, &tLen, fpLog))) 
     {
         iRet    = ConstructLineEntry(pcLine, &pstLnEty);
-printf("parse line [%s] iRet = [%d].\n", pcLine, iRet);
+        printf("parse line [%s] iRet = [%d].\n", pcLine, iRet);
         if (iRet)
         {
             LOGE("Parser line [%s] failed . please check it .\n", pcLine);
@@ -842,29 +942,33 @@ printf("parse line [%s] iRet = [%d].\n", pcLine, iRet);
             case CT_TXCS:
             case CT_UPRQ:
             {
-                iRet    = InsertNode(&stCSTree, pstLnEty);
+                iRet    = TransBeginPro(&stCSTree, pstLnEty);
+                if (iRet) /* if failed , destory line entry .*/
+                {
+                    LOGE("Insertnode error: key = [%s].\n", pstLnEty->acKey);
+                    DestroyLineEntry(pstLnEty);
+                }
                 break;
             }
 #undef  TRANS_BEGIN
             
             default:
             {
-                iRet    = UpdateEntry(&stCSTree, pstLnEty);
+                iRet    = TransUpdate(&stCSTree, pstLnEty);
+                if (iRet)
+                {
+                    LOGE("TransUpdate node error: key = [%s].\n", pstLnEty->acKey);
+                }
+                DestroyLineEntry(pstLnEty);
                 break;
             }
         } 
 
         FREE(pcLine);
-        if (iRet)
-        {
-            LOGE("Insertnode error: key = [%s].\n", pstLnEty->acKey);
-            DestroyLineEntry(pstLnEty);
-        }
-        
     }
 
     /* insert into db by tree node */
-    /* TODO: insert into db */
+    /* TODO: add your operation by stScTree */
 
     for (pstNode = rb_first(&stCSTree); pstNode;  pstNode = rb_next(pstNode))
     {
@@ -888,7 +992,9 @@ printf("parse line [%s] iRet = [%d].\n", pcLine, iRet);
 
 /** 
  * @ desc: checking  file_name  is fitting for format.
- *
+ * @ in  :
+ * @ out :
+ * @ cautious:
  *
  **/
 int CheckParserFileName(char* pcFileName, char* pcFormat)
@@ -932,7 +1038,7 @@ int CheckFilePath(char* pcPath)
     RETURN_IF_ERR(!iRet);
     
     iRet    = access(pcPath, R_OK);
-    RETURN_IF_STDERR(iRet);
+    RETURN_IF_ERR(iRet);
 
     return iRet;
 }
@@ -959,7 +1065,8 @@ int ParseDir(char* pcPath)
     
     assert(NULL != (pDir = opendir(pcPath)));
 
-    while ((pstDirEle   = readdir(pDir))){
+    while ((pstDirEle   = readdir(pDir)))
+    {
         /** ignore . , .. and .*.swx  **/
         if ('.' == pstDirEle->d_name[0])
         {

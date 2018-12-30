@@ -1,10 +1,12 @@
 --  分析日志流水
     流水有关键字，关键字用固定的符号包裹
     流水是多进程交叉打印
+    同一秒有可能同一进程处理多次任务
 
 TODO:
     1. 合并关联流水
     2. bugfix 1
+    3. EndDate EndTime put in line content , to do fix
 
 -- set log
 set env [LOG_FILE_PATH] 

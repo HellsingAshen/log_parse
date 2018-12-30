@@ -1,15 +1,4 @@
-#if 0
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <assert.h>
-#include <sys/types.h>
-#include "rbtree.h"
-#include "parser.h"
-#endif
-
 #include "rbtree_op.h"
-
 
 LineEntry_S*  SerachNode(struct rb_root* pstRoot, const char* pcKey)
 {
@@ -55,17 +44,16 @@ LineEntry_S*  SerachNode(struct rb_root* pstRoot, const char* pcKey)
 int RefreshNode(LineEntry_S* pstNew, LineEntry_S* pstOld)
 {
     int             iRet            = 0;
+
     assert(NULL != pstNew || NULL != pstOld);
-
-    memset(pstOld->acEndDate, 0, sizeof(pstOld->acEndDate));
-    memset(pstOld->acEndTime, 0, sizeof(pstOld->acEndTime));
-    strcpy(pstOld->acEndTime, pstNew->acEndTime);
-    strcpy(pstOld->acEndDate, pstNew->acEndDate);
-
     assert(NULL != pstOld->pstLnCtt || NULL != pstNew->pstLnCtt);
 
-    REFRESHNODEBYNEW(pstOld->pstLnCtt, pstNew->pstLnCtt, pcTranCode);
+    memset(pstOld->pstLnCtt->acEndDate, 0, sizeof(pstOld->pstLnCtt->acEndDate));
+    memset(pstOld->pstLnCtt->acEndTime, 0, sizeof(pstOld->pstLnCtt->acEndTime));
+    strcpy(pstOld->pstLnCtt->acEndTime, pstNew->pstLnCtt->acEndTime);
+    strcpy(pstOld->pstLnCtt->acEndDate, pstNew->pstLnCtt->acEndDate);
 
+    REFRESHNODEBYNEW(pstOld->pstLnCtt, pstNew->pstLnCtt, pcTranCode);
     REFRESHNODEBYNEW(pstOld->pstLnCtt, pstNew->pstLnCtt, pcRetCode);
     REFRESHNODEBYNEW(pstOld->pstLnCtt, pstNew->pstLnCtt, pcRetDesc);
     REFRESHNODEBYNEW(pstOld->pstLnCtt, pstNew->pstLnCtt, pcAppSrc); 
@@ -77,19 +65,7 @@ int RefreshNode(LineEntry_S* pstNew, LineEntry_S* pstOld)
     REFRESHNODEBYNEW(pstOld->pstLnCtt, pstNew->pstLnCtt, pcSrcIp);  
     REFRESHNODEBYNEW(pstOld->pstLnCtt, pstNew->pstLnCtt, pcDstIp);  
     REFRESHNODEBYNEW(pstOld->pstLnCtt, pstNew->pstLnCtt, pcDstPort);
-
     REFRESHNODEBYNEW(pstOld->pstLnCtt, pstNew->pstLnCtt, pcBasePath);
-
-#if 0
-    if ((strlen(pstNew->acEndDate) > 0) && (strlen(pstNew->acEndTime) > 0))
-    {
-        memset(pstOld->acEndDate, 0, sizeof(pstOld->acEndDate));
-        memset(pstOld->acEndTime, 0, sizeof(pstOld->acEndTime));
-        strcpy(pstOld->acEndDate, pstOld->acEndDate);
-        strcpy(pstOld->acEndTime, pstOld->acEndTime);
-    }
-#endif
-
     REFRESHNODEBYNEW(pstOld->pstLnCtt, pstNew->pstLnCtt, pcDst);  
     REFRESHNODEBYNEW(pstOld->pstLnCtt, pstNew->pstLnCtt, pcSrc);
     return iRet;
@@ -97,40 +73,6 @@ int RefreshNode(LineEntry_S* pstNew, LineEntry_S* pstOld)
 }
 #undef REFRESHNODEBYNEW
 
-/**
- * @ desc   :  update tree, if  not exist , do insert. if exist , do update.
- * @ in     :
- *              pstRoot     -- root
- *              pstEntryNew -- changed entry
- * @ out    :  
- * @ cautious: 
- **/ 
-int UpdateTree(struct rb_root* pstRoot, LineEntry_S* pstEntryNew)
-{
-
-    int             iRet            = 0;
-    LineEntry_S*    pstLineEntry    = NULL;
-    if (!pstEntryNew)
-    {
-        return 0;
-    }
-
-    /* do serach */
-    pstLineEntry = SerachNode(pstRoot, pstEntryNew->acKey);
-
-    /* insert if not exist */
-    if (!pstEntryNew){
-        iRet    = InsertNode(pstRoot, pstEntryNew);
-        RETURN_IF_ERR(iRet);
-    }
-    else
-    {
-        iRet    = RefreshNode(pstEntryNew, pstLineEntry);
-        RETURN_IF_ERR(iRet);
-    }
-    
-    return iRet;
-}
 
 int InsertNode(struct rb_root* pstRoot, LineEntry_S* pstEntryNew)
 {
@@ -252,33 +194,4 @@ int FuzzySerachNode(
     return iRet;
 }
 
-
-
-
-
-#if 0
-int main1()
-{
-    printf("hello c.\n");
-    int aiArrSc[] = {5,4, 3, 2, 1, 9, 8, 7};
-    LineEntry_S* pstEntryNew  = NULL;
-    struct rb_root stScTree = RB_ROOT;
-    int i = 0;
-    for (; i < sizeof(aiArrSc)/sizeof(int); i++)
-    {
-        pstEntryNew = malloc(sizeof(LineEntry_S));
-        pstEntryNew->acKey = aiArrSc[i];
-        InsertScore(&stScTree, pstEntryNew);
-    }
-    PrtTreeAsce(&stScTree);
-
-    DeleteScore(&stScTree, 5);
-    PrtTreeAsce(&stScTree);
-    DeleteScore(&stScTree, 2);
-    PrtTreeAsce(&stScTree);
-
-    return 0;
-}
-
-#endif
 

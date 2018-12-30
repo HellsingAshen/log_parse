@@ -3,6 +3,7 @@
 
 #include "macro.h"
 #include <sys/types.h>
+#include "list.h"
 #include "rbtree.h"
 
 typedef enum tagErrCode_E
@@ -19,6 +20,7 @@ typedef enum tagErrCode_E
     ERR_CODE_NONEEDPARSE,
     ERR_CODE_MAX,
 }ErrCode_E;
+
 typedef enum tagTranType_E
 {
     TRANS = 0,
@@ -70,16 +72,14 @@ typedef enum tagCtxType_E
     /* no need to parse */
     CT_IGNO,         
 
-    
-
     CT_MAX
 }CtxType_E;
 
-#define LINECONTENT_P
-#ifdef LINECONTENT_P
 typedef struct tagLineContent_S
 {
     CtxType_E   enContentType;              /* content type             */
+    char        acEndDate[10 + 1];          /* end date                 */
+    char        acEndTime[8 + 1];           /* end time                 */
 
     char        *pcTranCode;                /* trans code               */
     char        *pcRetCode;                 /* ret code                 */
@@ -100,29 +100,10 @@ typedef struct tagLineContent_S
 	/* trans */
 	char		*pcDst;						/* appDst + nodeDst */
 	char		*pcSrc;						/* appSrc + nodeSrc */
+
+    struct list_head stLink;                /* list node */
     
 }LineContent_S;
-
-#else
-typedef struct tagLineContent_S
-{
-    CtxType_E   enContentType;               /* content type             */
-
-    char        acTranCode[4 + 1];          /* trans code               */
-    char        acRetCode[4 + 1];           /* ret code                 */
-    char        acRetDesc[128 + 1];         /* ret code description     */
-
-    char        acAppSrc[3 + 1];            /* app src code             */
-    char        acAppDst[3 + 1];            /* app destion code         */
-    char        acNodeSrc[2 + 1];           /* node src code            */
-    char        acNodeDst[2 + 1];           /* node destion code        */
-    char        acDstFile[MAX_PATH_LEN];    /* destion full path        */
-    char        acSeqNo[20 + 1];            /* SEQ_FTP_CLI_LIST         */
-    char        acDstIp[15 + 1];            /* destion  ip              */
-    char        acDstPort[5+ 1];            /* destion port             */
-    
-}LineContent_S;
-#endif
 
 
 typedef struct tagLineEntry_S
@@ -130,15 +111,19 @@ typedef struct tagLineEntry_S
     char        acDate[10 + 1];             /* start date               */
     char        acTime[8 + 1];              /* start time               */
     char        acPid[5 + 1];               /* pid who logged           */
-    char        acFileLine[128 + 1];        /* filename and line number */
 
+#if 0
     char        acEndDate[10 + 1];          /* end date                 */
     char        acEndTime[8 + 1];           /* end time                 */
+#endif
     
-    LineContent_S*  pstLnCtt;               /* point to line content struct */
+    LineContent_S*  pstLnCtt;               /* point to lastest line content struct */
 
     char        acKey[10 + 8 + 8 + 1];      /* key = acDate + acTime + tPid */
-    struct rb_node stNode;                  /* rbtree node              */
+
+    struct rb_node      stNode;             /* rbtree node              */
+   
+    struct list_head    stListHead;         /* list head                */
 }LineEntry_S;
 
 int ParseDir(char* pcPath);
