@@ -5,7 +5,6 @@
 
 TODO:
     1. 合并关联流水
-    2. EndDate EndTime put in line content , to do fix
 
 -- set log
 set env [LOG_FILE_PATH] 
