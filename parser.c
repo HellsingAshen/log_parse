@@ -613,15 +613,6 @@ void SetTransEndDate(LineEntry_S* pstLineEntry)
     {
         return;
     }
-#if 0
-    if (pstLineEntry->pstLnCtt->enContentType == CT_WJCS
-        || pstLineEntry->pstLnCtt->enContentType == CT_CSFH)
-    {
-        strcpy(pstLineEntry->pstLnCtt->acEndTime, pstLineEntry->acTime);
-        strcpy(pstLineEntry->pstLnCtt->acEndDate, pstLineEntry->acDate);
-        return;
-    }
-#endif
 
     strcpy(pstLineEntry->pstLnCtt->acEndTime, pstLineEntry->acTime);
     strcpy(pstLineEntry->pstLnCtt->acEndDate, pstLineEntry->acDate);
@@ -656,13 +647,6 @@ int InitLineEntry(char* pcLine, LineEntry_S* pstLineEntry)
     GOTO_IF_COND(iRet, error);
     strcpy(pstLineEntry->acPid, pcOut);
 
-#if 0
-    memset(pcOut, 0, MAX_BUFF_LEN_128);
-    iRet    = GetNthEleBySep(pcLine, 4, SP, pcOut);
-    GOTO_IF_COND(iRet, error);
-    strcpy(pstLineEntry->acFileLine, pcOut);
-#endif
-    
     memset(pstLineEntry->acKey, 0, sizeof(pstLineEntry->acKey));
     sprintf(pstLineEntry->acKey, "%s%s%s", pstLineEntry->acDate, pstLineEntry->acTime, pstLineEntry->acPid);
 

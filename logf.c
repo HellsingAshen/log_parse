@@ -344,7 +344,7 @@ int OpenLogFile (char *sLogFilePath, char *sLogName, int nLogSwitchMode, int nLo
 {
     char        sExpFilePath[LOG_PATH_LEN_MAX];
     char        sFullLogName[LOG_PATH_LEN_MAX+LOG_NAME_LEN_MAX];
-    char        sFullBakLogName[LOG_PATH_LEN_MAX+LOG_NAME_LEN_MAX];
+    char        sFullBakLogName[LOG_PATH_LEN_MAX + LOG_NAME_LEN_MAX + 1];
     int         nReturnCode;
     struct stat statbuf;
     
